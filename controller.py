@@ -1,3 +1,6 @@
+DEBUG = True
+
+
 def get_action(detections):
     """
     Determines the action to take based on game detections.
@@ -13,24 +16,40 @@ def get_action(detections):
     for i in range(len(detections.xyxy)):
         box = detections.xyxy[i]
         y_centroid = (box[1] + box[3]) / 2
+        class_name = detections.data['class_name'][i]
 
-        if detections.data['class_name'][i] == 'cactus':
-            # Check if the cactus is in the "jump zone"
-            if not (110 < y_centroid < 144):
+        if DEBUG:
+            print(f"[{class_name}] x_left={box[0]:.1f}, y_top={box[1]:.1f}, "
+                  f"x_right={box[2]:.1f}, y_bottom={box[3]:.1f}, "
+                  f"y_centroid={y_centroid:.1f}")
+
+        if class_name == 'cactus':
+            y_in_range = 100 < y_centroid < 190
+            x_in_range = 100 < box[0] < 190
+            if DEBUG:
+                print(f"  -> cactus check: y_in_range={y_in_range} (100<{y_centroid:.1f}<190), "
+                      f"x_in_range={x_in_range} (100<{box[0]:.1f}<190)")
+            if not y_in_range:
                 continue
-            # left corner on the X axis between 130 and 170
-            if 130 < box[0] < 170:
-                return "up"  # Jump over cactus
-
-        elif detections.data['class_name'][i] == 'bird':
-            # Check if the bird is in the action zone
-            if not (100 < box[0] < 200):
-                continue
-
-            # Act based on the first detected bird in the zone
-            if y_centroid > 121:  # Low bird -> JUMP
+            if x_in_range:
+                if DEBUG:
+                    print("  -> ACTION: JUMP!")
                 return "up"
-            else:  # High bird -> DUCK
+
+        elif class_name == 'bird':
+            x_in_range = 100 < box[0] < 190
+            if DEBUG:
+                print(f"  -> bird check: x_in_range={x_in_range} (100<{box[0]:.1f}<190), "  
+                      f"y_centroid={y_centroid:.1f} (threshold=150)")
+            if not x_in_range:
+                continue
+            if y_centroid > 150:
+                if DEBUG:
+                    print("  -> ACTION: JUMP (low bird)!")
+                return "up"
+            else:
+                if DEBUG:
+                    print("  -> ACTION: DUCK (high bird)!")
                 return "down"
 
     return None
