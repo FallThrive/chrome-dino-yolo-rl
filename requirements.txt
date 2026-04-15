@@ -1,7 +1,9 @@
 mss
 numpy
 opencv-python
-inference # or inference-gpu, if you have NVIDIA gpu
+inference-gpu # or inference-gpu, if you have NVIDIA gpu
 supervision
 pynput
-cv2
+python-dotenv
+torch
+torchvision
