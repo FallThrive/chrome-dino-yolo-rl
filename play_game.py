@@ -7,6 +7,7 @@ import numpy as np
 from pynput.keyboard import Key, Controller
 
 from controller import get_action
+from controller import get_current_speed
 from utils import draw_key_indicators
 
 
@@ -70,6 +71,28 @@ while True:
     if keyboard_img is None:
         keyboard_img = np.ones((64 * 2 + 20, image.shape[1], 3), dtype=np.uint8) * 255
     keyboard_img = draw_key_indicators(keyboard_img, key_release_queue.keys())
+
+    speed_text = f"Speed: {get_current_speed():.1f}px/s"
+    cv2.putText(
+        image,
+        speed_text,
+        (10, 28),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (0, 0, 0),
+        3,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        image,
+        speed_text,
+        (10, 28),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (255, 255, 255),
+        1,
+        cv2.LINE_AA,
+    )
 
     # display the image
     cv2.imshow("Gameplay", cv2.vconcat([image, keyboard_img]))

@@ -1,21 +1,21 @@
 import time
+from collections import deque
 
 DEBUG = True
 
-TIME_TO_PEAK = 0.2
+TIME_TO_PEAK = 0.18
 DINO_X_POSITION = 100
-MIN_SPEED = 100
-MAX_SPEED = 1000
+MIN_SPEED = 300
+MAX_SPEED = 1500
 MIN_TRIGGER_DISTANCE = 0
-MAX_TRIGGER_DISTANCE = 400
+MAX_TRIGGER_DISTANCE = 600
 JUMP_WINDOW_MARGIN = 0
 
 
 class GameController:
     def __init__(self):
-        self.prev_obstacles = []
-        self.prev_time = None
-        self.current_speed = 120
+        self.obstacle_history = deque(maxlen=4)
+        self.current_speed = 400
         self.speed_samples = []
         self.max_speed_samples = 5
 
@@ -54,12 +54,13 @@ class GameController:
                     'box': box
                 })
 
-        if self.prev_time is not None and self.prev_obstacles:
-            dt = current_time - self.prev_time
+        if len(self.obstacle_history) >= 3:
+            prev_obstacles, prev_time = self.obstacle_history[-3]
+            dt = current_time - prev_time
             if dt > 0:
                 speeds = []
                 for curr in current_obstacles:
-                    prev = self._match_obstacle(curr, self.prev_obstacles)
+                    prev = self._match_obstacle(curr, prev_obstacles)
                     if prev:
                         dx = prev['x_left'] - curr['x_left']
                         if dx > 0:
@@ -68,13 +69,13 @@ class GameController:
                 
                 if speeds:
                     avg_speed = sum(speeds) / len(speeds)
+                    avg_speed = max(MIN_SPEED, min(MAX_SPEED, avg_speed))
                     self.speed_samples.append(avg_speed)
                     if len(self.speed_samples) > self.max_speed_samples:
                         self.speed_samples.pop(0)
                     self.current_speed = sum(self.speed_samples) / len(self.speed_samples)
 
-        self.prev_obstacles = current_obstacles
-        self.prev_time = current_time
+        self.obstacle_history.append((current_obstacles, current_time))
 
     def _get_trigger_distance_for_obstacle(self, obstacle_width):
         base_distance = self.current_speed * TIME_TO_PEAK
@@ -165,9 +166,16 @@ class GameController:
 
         return None
 
+    def get_current_speed(self):
+        return self.current_speed
+
 
 _controller = GameController()
 
 
 def get_action(detections, current_time=None):
     return _controller.get_action(detections, current_time)
+
+
+def get_current_speed():
+    return _controller.get_current_speed()
