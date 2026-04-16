@@ -54,7 +54,7 @@ while True:
     )
 
     # Get desired action from the controller (either duck, jump, or nothing)
-    action = get_action(detections)
+    action = get_action(detections, current_time)
 
     # Execute the action
     if action == "up":
