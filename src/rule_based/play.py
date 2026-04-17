@@ -1,13 +1,17 @@
+import os
+import sys
 import cv2
 import numpy as np
 import time
 from pynput.keyboard import Key
 
-from ..core.detector import DinoDetector
-from ..core.screen import capture_screenshot
-from ..core.keyboard import KeyboardController
-from ..utils.visualization import draw_key_indicators
-from .controller import GameController
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from src.core.detector import DinoDetector
+from src.core.screen import capture_screenshot
+from src.core.keyboard import KeyboardController
+from src.utils.visualization import draw_key_indicators
+from src.rule_based.controller import GameController
 
 
 def play_rule_based():

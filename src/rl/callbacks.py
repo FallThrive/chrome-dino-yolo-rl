@@ -74,7 +74,7 @@ class GameResetCallback(BaseCallback):
         
         for done in dones:
             if done:
-                from ..core.keyboard import KeyboardController
+                from src.core.keyboard import KeyboardController
                 keyboard = KeyboardController()
                 keyboard.press_enter()
                 break

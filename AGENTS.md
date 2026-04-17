@@ -69,6 +69,8 @@ uv run python train_rl.py
 - `--save-freq`: 检查点保存频率（默认 10000）
 - `--save-path`: 模型保存路径（默认 weights/rl）
 - `--log-dir`: TensorBoard 日志目录（默认 logs）
+- `--no-render`: 禁用训练时的可视化窗口（默认启用）
+- `--only-up`: 仅使用跳跃动作（不使用下蹲，动作空间变为2个）
 
 训练过程中：
 - 模型和日志目录自动添加时间戳（格式：`YYMMDD_HHMMSS`）

@@ -1,16 +1,19 @@
 import argparse
 import os
+import sys
 import time
 import cv2
 import numpy as np
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 from stable_baselines3 import PPO
 
-from ..core.detector import DinoDetector
-from ..core.screen import capture_screenshot
-from ..core.keyboard import KeyboardController
-from ..utils.visualization import draw_key_indicators
-from .env import DinoGameEnv
+from src.core.detector import DinoDetector
+from src.core.screen import capture_screenshot
+from src.core.keyboard import KeyboardController
+from src.utils.visualization import draw_key_indicators
+from src.rl.env import DinoGameEnv
 
 
 def find_latest_model(base_path: str = "weights/rl") -> str:
@@ -48,7 +51,7 @@ def find_latest_model(base_path: str = "weights/rl") -> str:
     return None
 
 
-def play_rl(weights_path: str = None, render: bool = True, use_latest: bool = False):
+def play_rl(weights_path: str = None, render: bool = True, use_latest: bool = False, only_up: bool = False):
     if use_latest or weights_path is None:
         weights_path = find_latest_model()
         if weights_path is None:
@@ -58,7 +61,7 @@ def play_rl(weights_path: str = None, render: bool = True, use_latest: bool = Fa
     elif not weights_path.endswith('.zip'):
         weights_path += '.zip'
     
-    env = DinoGameEnv(render_mode="human" if render else None)
+    env = DinoGameEnv(render_mode="human" if render else None, only_up=only_up)
     
     try:
         model = PPO.load(weights_path, env=env)
@@ -77,6 +80,7 @@ def play_rl(weights_path: str = None, render: bool = True, use_latest: bool = Fa
     print("Playing Chrome Dino Game with RL Agent")
     print("=" * 50)
     print(f"Model: {weights_path}")
+    print(f"Action space: {'UP only' if only_up else 'UP/DOWN'}")
     print("Press 'Q' to quit")
     print("=" * 50)
     
@@ -84,6 +88,7 @@ def play_rl(weights_path: str = None, render: bool = True, use_latest: bool = Fa
     done = False
     total_reward = 0
     step_count = 0
+    episode_count = 0
     
     while True:
         keyboard.update()
@@ -94,7 +99,8 @@ def play_rl(weights_path: str = None, render: bool = True, use_latest: bool = Fa
         step_count += 1
         
         if done or truncated:
-            print(f"Episode ended. Total reward: {total_reward:.2f}, Steps: {step_count}")
+            episode_count += 1
+            print(f"Episode {episode_count} ended. Total reward: {total_reward:.2f}, Steps: {step_count}")
             keyboard.press_enter()
             time.sleep(0.5)
             obs, _ = env.reset()
@@ -111,7 +117,7 @@ def play_rl(weights_path: str = None, render: bool = True, use_latest: bool = Fa
                     keyboard_img = np.ones((64 * 2 + 20, image.shape[1], 3), dtype=np.uint8) * 255
                 keyboard_img = draw_key_indicators(keyboard_img, keyboard.get_pressed_keys())
                 
-                action_names = ["NOOP", "UP", "DOWN"]
+                action_names = ["NOOP", "UP"] if only_up else ["NOOP", "UP", "DOWN"]
                 action_text = f"Action: {action_names[action]}"
                 cv2.putText(
                     image,
@@ -171,10 +177,11 @@ def main():
     parser.add_argument("--weights", type=str, default=None, help="Path to model weights")
     parser.add_argument("--latest", action="store_true", help="Use the latest trained model")
     parser.add_argument("--no-render", action="store_true", help="Disable rendering")
+    parser.add_argument("--only-up", action="store_true", help="Use only UP action (no DOWN)")
     
     args = parser.parse_args()
     
-    play_rl(weights_path=args.weights, render=not args.no_render, use_latest=args.latest)
+    play_rl(weights_path=args.weights, render=not args.no_render, use_latest=args.latest, only_up=args.only_up)
 
 
 if __name__ == "__main__":

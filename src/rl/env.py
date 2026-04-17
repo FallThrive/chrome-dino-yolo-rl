@@ -4,10 +4,12 @@ import gymnasium as gym
 from gymnasium import spaces
 from collections import deque
 import time
+import cv2
 
-from ..core.detector import DinoDetector, Detection
-from ..core.screen import capture_screenshot
-from ..core.keyboard import KeyboardController
+from src.core.detector import DinoDetector, Detection
+from src.core.screen import capture_screenshot
+from src.core.keyboard import KeyboardController
+from src.utils.visualization import draw_key_indicators
 
 
 SURVIVAL_REWARD = 0.01
@@ -117,8 +119,11 @@ class SpeedEstimator:
 class DinoGameEnv(gym.Env):
     metadata = {"render_modes": ["human"]}
     
-    def __init__(self, render_mode: Optional[str] = None):
+    def __init__(self, render_mode: Optional[str] = None, only_up: bool = False):
         super().__init__()
+        
+        self.only_up = only_up
+        self.n_actions = 2 if only_up else 3
         
         self.observation_space = spaces.Box(
             low=-1.0,
@@ -127,7 +132,7 @@ class DinoGameEnv(gym.Env):
             dtype=np.float32
         )
         
-        self.action_space = spaces.Discrete(3)
+        self.action_space = spaces.Discrete(self.n_actions)
         
         self.detector = DinoDetector()
         self.keyboard = KeyboardController()
@@ -140,6 +145,11 @@ class DinoGameEnv(gym.Env):
         
         self._last_action = 0
         self._step_count = 0
+        self._current_image = None
+        self._last_result = None
+        self._window_name = "RL Training"
+        self._total_reward = 0.0
+        self._episode_count = 0
     
     def _build_state(self, dino_y: Optional[float], obstacles: list, speed: float) -> np.ndarray:
         state = np.full(12, -1.0, dtype=np.float32)
@@ -179,6 +189,7 @@ class DinoGameEnv(gym.Env):
         self.speed_estimator.reset()
         self._last_action = 0
         self._step_count = 0
+        self._total_reward = 0.0
         
         self.keyboard.release_all()
         
@@ -193,7 +204,9 @@ class DinoGameEnv(gym.Env):
         if image is None:
             return self._build_state(None, [], 400.0), {}
         
+        self._current_image = image
         result = self.detector.detect(image)
+        self._last_result = result
         
         if result.has_restart:
             self.keyboard.press_enter()
@@ -201,6 +214,9 @@ class DinoGameEnv(gym.Env):
         
         dino_y = result.dino.y_center if result.dino else None
         state = self._build_state(dino_y, result.obstacles, 400.0)
+        
+        if self.render_mode == "human":
+            self._render_frame()
         
         return state, {}
     
@@ -217,7 +233,9 @@ class DinoGameEnv(gym.Env):
         if image is None:
             return self._build_state(None, [], self.speed_estimator.current_speed), SURVIVAL_REWARD, False, False, {}
         
+        self._current_image = image
         result = self.detector.detect(image)
+        self._last_result = result
         current_time = time.time()
         
         speed = self.speed_estimator.update(result.obstacles, current_time)
@@ -226,6 +244,7 @@ class DinoGameEnv(gym.Env):
         
         reward = SURVIVAL_REWARD
         reward += len(new_passed) * OBSTACLE_PASS_REWARD
+        self._total_reward += reward
         
         terminated = False
         truncated = False
@@ -233,6 +252,7 @@ class DinoGameEnv(gym.Env):
         if result.has_restart:
             reward += GAME_OVER_PENALTY
             terminated = True
+            self._episode_count += 1
         
         dino_y = result.dino.y_center if result.dino else None
         state = self._build_state(dino_y, result.obstacles, speed)
@@ -240,13 +260,118 @@ class DinoGameEnv(gym.Env):
         info = {
             "speed": speed,
             "passed_obstacles": len(self.obstacle_tracker.passed_obstacles),
-            "step": self._step_count
+            "step": self._step_count,
+            "total_reward": self._total_reward,
+            "episode": self._episode_count
         }
+        
+        if self.render_mode == "human":
+            self._render_frame()
         
         return state, reward, terminated, truncated, info
     
+    def _render_frame(self):
+        if self._current_image is None:
+            return
+        
+        display_img = self._current_image.copy()
+        
+        action_names = ["NOOP", "UP"] if self.only_up else ["NOOP", "UP", "DOWN"]
+        action_text = f"Action: {action_names[self._last_action]}"
+        cv2.putText(
+            display_img,
+            action_text,
+            (10, 25),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 0, 0),
+            2,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            display_img,
+            action_text,
+            (10, 25),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        
+        reward_text = f"Reward: {self._total_reward:.2f}"
+        cv2.putText(
+            display_img,
+            reward_text,
+            (display_img.shape[1] - 180, 25),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 0, 0),
+            2,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            display_img,
+            reward_text,
+            (display_img.shape[1] - 180, 25),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 0),
+            1,
+            cv2.LINE_AA,
+        )
+        
+        passed_text = f"Passed: {len(self.obstacle_tracker.passed_obstacles)}"
+        cv2.putText(
+            display_img,
+            passed_text,
+            (10, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 0, 0),
+            2,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            display_img,
+            passed_text,
+            (10, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        
+        episode_text = f"Episode: {self._episode_count}"
+        cv2.putText(
+            display_img,
+            episode_text,
+            (display_img.shape[1] - 180, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 0, 0),
+            2,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            display_img,
+            episode_text,
+            (display_img.shape[1] - 180, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 0),
+            1,
+            cv2.LINE_AA,
+        )
+        
+        cv2.imshow(self._window_name, display_img)
+        cv2.waitKey(1)
+    
     def render(self):
-        pass
+        if self.render_mode == "human":
+            self._render_frame()
     
     def close(self):
         self.keyboard.release_all()
+        cv2.destroyWindow(self._window_name)

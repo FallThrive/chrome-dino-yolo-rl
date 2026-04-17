@@ -4,7 +4,7 @@ from typing import Optional, List
 import numpy as np
 import supervision as sv
 
-from ..core.detector import Detection
+from src.core.detector import Detection
 
 
 DEBUG = True

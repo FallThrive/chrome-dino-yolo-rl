@@ -1,13 +1,16 @@
 import os
+import sys
 import argparse
 from datetime import datetime
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.vec_env import DummyVecEnv
 
-from .env import DinoGameEnv
-from .callbacks import DinoTrainingCallback, GameResetCallback, EpisodeLimitCallback
+from src.rl.env import DinoGameEnv
+from src.rl.callbacks import DinoTrainingCallback, GameResetCallback, EpisodeLimitCallback
 
 
 def train(
@@ -26,6 +29,8 @@ def train(
     save_path: str = "weights/rl",
     log_dir: str = "logs",
     continue_from: str = None,
+    render: bool = True,
+    only_up: bool = False,
 ):
     timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
     
@@ -37,15 +42,16 @@ def train(
     os.makedirs(os.path.join(save_path, "checkpoints"), exist_ok=True)
     os.makedirs(os.path.join(save_path, "best"), exist_ok=True)
     
-    env = DummyVecEnv([lambda: DinoGameEnv()])
+    render_mode = "human" if render else None
+    env = DummyVecEnv([lambda: DinoGameEnv(render_mode=render_mode, only_up=only_up)])
     
     policy_kwargs = dict(
-        net_arch=[dict(pi=[128, 64], vf=[128, 64])]
+        net_arch=dict(pi=[128, 64], vf=[128, 64])
     )
     
     if continue_from and os.path.exists(continue_from):
         print(f"Loading model from {continue_from}")
-        model = PPO.load(continue_from, env=env)
+        model = PPO.load(continue_from, env=env, device='cpu')
     else:
         model = PPO(
             "MlpPolicy",
@@ -62,6 +68,7 @@ def train(
             tensorboard_log=log_dir,
             policy_kwargs=policy_kwargs,
             verbose=1,
+            device='cpu',
         )
     
     checkpoint_callback = CheckpointCallback(
@@ -83,6 +90,7 @@ def train(
     print(f"Total timesteps: {total_timesteps}")
     if n_episodes > 0:
         print(f"Max episodes: {n_episodes}")
+    print(f"Action space: {'UP only (2 actions)' if only_up else 'UP/DOWN (3 actions)'}")
     print(f"Learning rate: {learning_rate}")
     print(f"Save frequency: {save_freq}")
     print(f"Save path: {save_path}")
@@ -117,6 +125,8 @@ def main():
     parser.add_argument("--save-path", type=str, default="weights/rl", help="Model save path")
     parser.add_argument("--log-dir", type=str, default="logs", help="TensorBoard log directory")
     parser.add_argument("--continue", dest="continue_from", type=str, default=None, help="Continue training from model path")
+    parser.add_argument("--no-render", action="store_true", help="Disable rendering during training")
+    parser.add_argument("--only-up", action="store_true", help="Use only UP action (no DOWN)")
     
     args = parser.parse_args()
     
@@ -128,6 +138,8 @@ def main():
         save_path=args.save_path,
         log_dir=args.log_dir,
         continue_from=args.continue_from,
+        render=not args.no_render,
+        only_up=args.only_up,
     )
 
 
