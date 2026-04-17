@@ -1,4 +1,4 @@
-from inference import get_model
+from ultralytics import YOLO
 from take_screenshots import capture_screenshot
 import supervision as sv
 import cv2
@@ -11,7 +11,7 @@ from controller import get_current_speed
 from utils import draw_key_indicators
 
 
-model = get_model(model_id="dino-game-rcopt/14")
+model = YOLO("weights/yolo26n_dino_260418.pt")
 
 palette = sv.ColorPalette(colors=[sv.Color(112, 153, 223), sv.Color(124, 221, 161), sv.Color(163, 81, 251)])
 
@@ -24,9 +24,15 @@ keyboard_img = None
 
 key_release_queue = {}
 
-# Capture screenshot from specified coordinates
+game_active = True
+
+def has_label(detections, label_name):
+    if len(detections) == 0:
+        return False
+    class_names = detections.data.get('class_name', [])
+    return label_name in class_names
+
 while True:
-    # Release (up/down) keys that are ready to be released
     current_time = time.time()
     keys_to_release = []
     for key, release_time in key_release_queue.items():
@@ -37,14 +43,18 @@ while True:
         del key_release_queue[key]
 
     image = capture_screenshot()
-    # Run inference on our screenshot
-    results = model.infer(image)
-
-    # load the results into the supervision Detections api
-    detections = sv.Detections.from_inference(results[0].dict(by_alias=True, exclude_none=True))
+    results = model(image)[0]
+    detections = sv.Detections.from_ultralytics(results)
     detections = detections[detections.confidence > 0.6]
 
-    # Annotate bounding boxes and labels
+    has_restart = has_label(detections, 'restart')
+    has_dino = has_label(detections, 'dino')
+
+    if has_restart:
+        game_active = False
+    elif not has_restart and has_dino:
+        game_active = True
+
     image = bounding_box_annotator.annotate(
         scene=image,
         detections=detections
@@ -54,20 +64,18 @@ while True:
         detections=detections,
     )
 
-    # Get desired action from the controller (either duck, jump, or nothing)
-    action = get_action(detections, current_time)
+    if game_active:
+        action = get_action(detections, current_time)
 
-    # Execute the action
-    if action == "up":
-        if Key.space not in key_release_queue:
-            keyboard.press(Key.space)
-            key_release_queue[Key.space] = time.time() + 0.3
-    elif action == "down":
-        if Key.down not in key_release_queue:
-            keyboard.press(Key.down)
-            key_release_queue[Key.down] = time.time() + 0.4
+        if action == "up":
+            if Key.space not in key_release_queue:
+                keyboard.press(Key.space)
+                key_release_queue[Key.space] = time.time() + 0.3
+        elif action == "down":
+            if Key.down not in key_release_queue:
+                keyboard.press(Key.down)
+                key_release_queue[Key.down] = time.time() + 0.4
 
-    # Draw UI indicators (arrow keys)
     if keyboard_img is None:
         keyboard_img = np.ones((64 * 2 + 20, image.shape[1], 3), dtype=np.uint8) * 255
     keyboard_img = draw_key_indicators(keyboard_img, key_release_queue.keys())
@@ -94,7 +102,29 @@ while True:
         cv2.LINE_AA,
     )
 
-    # display the image
+    status_text = "PLAYING" if game_active else "WAITING"
+    status_color = (0, 255, 0) if game_active else (0, 0, 255)
+    cv2.putText(
+        image,
+        status_text,
+        (image.shape[1] - 120, 28),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (0, 0, 0),
+        3,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        image,
+        status_text,
+        (image.shape[1] - 120, 28),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        status_color,
+        1,
+        cv2.LINE_AA,
+    )
+
     cv2.imshow("Gameplay", cv2.vconcat([image, keyboard_img]))
     key = cv2.waitKey(1)
     if key == ord('q'):

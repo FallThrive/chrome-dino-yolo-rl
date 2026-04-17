@@ -1,7 +1,7 @@
 mss
 numpy
-opencv-python
-inference-gpu # or inference-gpu, if you have NVIDIA gpu
+opencv-contrib-python
+ultralytics
 supervision
 pynput
 python-dotenv
