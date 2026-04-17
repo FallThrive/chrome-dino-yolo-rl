@@ -2,12 +2,17 @@
 
 ## 项目简介
 
-这是一个使用 YOLOv8 目标检测模型自动玩 Chrome 恐龙游戏的 AI 机器人项目。项目通过实时屏幕捕获、目标检测和键盘控制实现游戏自动化。
+这是一个使用 YOLOv8 目标检测模型自动玩 Chrome 恐龙游戏的 AI 机器人项目。项目支持两种控制方式：
+
+1. **基于规则的控制**：使用预设规则进行游戏决策
+2. **强化学习控制**：使用 PPO（Proximal Policy Optimization）算法训练智能体
 
 ## 技术栈
 
 - **Python 3.12+**
-- **YOLOv8** - 目标检测模型 (通过 Roboflow inference)
+- **YOLOv8** - 目标检测模型 (通过 Ultralytics)
+- **Stable Baselines3** - 强化学习框架 (PPO算法)
+- **Gymnasium** - 强化学习环境接口
 - **OpenCV** - 图像处理
 - **mss** - 屏幕截图捕获
 - **pynput** - 键盘控制
@@ -23,17 +28,19 @@
 uv sync
 ```
 
-### 首次运行流程
+## 快速开始
+
+### 方式一：基于规则的控制
 
 #### 步骤 1: 启动 Chrome 恐龙游戏
 1. 打开 Chrome 浏览器
 2. 访问 `chrome://dino/` 或断开网络后访问任意网页
 3. 按空格键开始游戏，让恐龙跑起来
 
-#### 步骤 2: 运行主程序并配置区域
+#### 步骤 2: 运行规则控制程序
 
 ```bash
-uv run python play_game.py
+uv run python play_rule_based.py
 ```
 
 首次运行会提示：
@@ -47,97 +54,177 @@ uv run python play_game.py
 - 底部显示当前按键状态指示器
 - 按 **Q** 键退出程序
 
-### 测试模型 (可选)
+### 方式二：强化学习控制
 
-如果想先测试模型检测效果，不执行键盘操作：
-
-```bash
-uv run python test_model.py
-```
-
-### 数据采集 (可选)
-
-如果需要采集数据集训练自定义模型：
+#### 训练模型
 
 ```bash
-uv run python take_screenshots.py
+uv run python train_rl.py
 ```
 
-截图会自动保存到 `dataset/` 目录，每 0.5 秒一张。
+训练参数（可通过命令行参数修改）：
+- `--timesteps`: 总训练步数（默认 1000000）
+- `--episodes`: 最大训练回合数（默认 0，表示无限制）
+- `--lr`: 学习率（默认 3e-4）
+- `--save-freq`: 检查点保存频率（默认 10000）
+- `--save-path`: 模型保存路径（默认 weights/rl）
+- `--log-dir`: TensorBoard 日志目录（默认 logs）
+
+训练过程中：
+- 模型和日志目录自动添加时间戳（格式：`YYMMDD_HHMMSS`）
+- 如果指定了 `--episodes`，训练到指定回合数后自动停止
+- 按 **Q** 键可随时停止训练并保存当前模型
+- 模型自动保存到 `weights/rl/<timestamp>/checkpoints/`
+- 最优模型保存到 `weights/rl/<timestamp>/best/model.zip`
+- 最终模型保存到 `weights/rl/<timestamp>/final_model.zip`
+
+#### 使用训练好的模型玩游戏
+
+```bash
+# 使用最新的训练模型
+uv run python play_rl.py --latest
+
+# 指定具体模型路径
+uv run python play_rl.py --weights weights/rl/250418_143052/best/model.zip
+```
+
+#### 查看训练曲线
+
+```bash
+tensorboard --logdir logs/
+```
 
 ## 项目结构
 
 ```
 chrome-dino-bot/
-├── play_game.py        # 主程序入口
-├── controller.py       # 游戏决策逻辑
-├── take_screenshots.py # 数据集采集工具
-├── test_model.py       # 模型推理测试
-├── utils.py            # 工具函数
-├── assets/             # UI 图标资源
-├── dataset/            # 训练数据集目录
-├── config.json         # ROI 配置文件 (运行时生成)
-├── pyproject.toml      # 项目配置
-└── uv.lock             # 依赖锁定文件
+├── src/
+│   ├── core/                    # 核心共享模块
+│   │   ├── detector.py          # YOLO检测器封装
+│   │   ├── screen.py            # 屏幕截图功能
+│   │   └── keyboard.py          # 键盘控制功能
+│   │
+│   ├── rule_based/              # 基于规则的控制方法
+│   │   ├── controller.py        # 规则控制器
+│   │   └── play.py              # 游戏运行入口
+│   │
+│   ├── rl/                      # 强化学习模块
+│   │   ├── env.py               # Gymnasium环境封装
+│   │   ├── callbacks.py         # SB3回调函数
+│   │   ├── train.py             # 训练脚本
+│   │   └── play.py              # 使用训练模型玩游戏
+│   │
+│   └── utils/                   # 工具函数
+│       └── visualization.py     # 可视化工具
+│
+├── weights/                     # 模型权重目录
+│   ├── yolo26n_dino_260418.pt   # YOLO检测模型
+│   └── rl/                      # RL模型权重
+│       └── <timestamp>/         # 训练时间戳目录 (YYMMDD_HHMMSS)
+│           ├── best/            # 最优权重
+│           ├── checkpoints/     # 检查点
+│           └── final_model.zip  # 最终模型
+│
+├── logs/                        # TensorBoard日志
+│   └── <timestamp>/             # 训练时间戳目录 (YYMMDD_HHMMSS)
+├── assets/                      # UI 图标资源
+├── dataset/                     # 训练数据集目录
+├── runs/                        # YOLO训练结果
+├── play_rule_based.py           # 规则方法入口脚本
+├── train_rl.py                  # RL训练入口脚本
+├── play_rl.py                   # RL游戏入口脚本
+├── config.json                  # ROI 配置文件
+├── pyproject.toml               # 项目配置
+└── AGENTS.md                    # 本文档
 ```
 
 ## 核心模块说明
 
-### 1. play_game.py - 主程序
+### 1. src/core/detector.py - YOLO检测器
 
-主循环逻辑：
-- 加载 YOLOv8 模型 (`dino-game-rcopt/14`)
-- 持续捕获游戏截图
-- 运行目标检测推理
-- 根据检测结果执行键盘操作
-- 显示带标注的游戏画面
+封装 YOLOv8 模型，提供统一的检测接口：
 
-关键代码流程：
 ```python
-model = get_model(model_id="dino-game-rcopt/14")
-while True:
-    image = capture_screenshot()
-    results = model.infer(image)
-    detections = sv.Detections.from_inference(results[0])
-    action = get_action(detections)
-    # 执行动作: "up" (跳跃) 或 "down" (下蹲)
+from src.core import DinoDetector
+
+detector = DinoDetector(model_path="weights/yolo26n_dino_260418.pt")
+result = detector.detect(image)
+
+# 结果包含：
+# - result.dino: 恐龙检测结果
+# - result.obstacles: 障碍物列表（仙人掌、飞鸟）
+# - result.has_restart: 是否检测到重新开始标签
 ```
 
-### 2. controller.py - 决策控制器
+### 2. src/core/screen.py - 屏幕截图
+
+提供屏幕截图和ROI选择功能：
+
+```python
+from src.core import capture_screenshot, select_screen_and_roi
+
+# 捕获截图
+image = capture_screenshot()
+
+# 重新选择游戏区域
+select_screen_and_roi()
+```
+
+### 3. src/core/keyboard.py - 键盘控制
+
+封装键盘操作，支持跳跃和下蹲：
+
+```python
+from src.core import KeyboardController
+
+keyboard = KeyboardController()
+keyboard.press_jump()    # 跳跃（持续0.5秒）
+keyboard.press_duck()    # 下蹲（支持长按）
+keyboard.press_enter()   # 按回车键
+keyboard.update()        # 更新按键状态
+```
+
+### 4. src/rl/env.py - Gymnasium环境
+
+实现强化学习环境接口：
+
+**状态空间（12维向量）**：
+| 特征 | 描述 | 归一化方式 | 缺失值 |
+|------|------|-----------|--------|
+| dino_y | 恐龙Y坐标 | / 图像高度 | 0.5 |
+| obstacle_1_label | 最近障碍物标签 | 仙人掌=0, 飞鸟=1 | -1 |
+| obstacle_1_x/y/w/h | 障碍物位置和尺寸 | / 图像尺寸 | -1 |
+| obstacle_2_label | 第二近障碍物标签 | 同上 | -1 |
+| obstacle_2_x/y/w/h | 障碍物位置和尺寸 | / 图像尺寸 | -1 |
+| speed | 障碍物移动速度 | / 1500 | 0 |
+
+**动作空间（3个离散动作）**：
+| 动作ID | 动作 | 描述 |
+|--------|------|------|
+| 0 | NOOP | 不按键 |
+| 1 | UP | 跳跃 |
+| 2 | DOWN | 下蹲 |
+
+**奖励函数**：
+- 存活奖励：+0.01（每帧）
+- 通过障碍物：+1.0（每个障碍物）
+- 游戏结束：-2.0
+
+### 5. src/rule_based/controller.py - 规则控制器
 
 基于规则的决策逻辑：
 
 | 检测对象 | 条件 | 动作 |
 |---------|------|------|
-| 仙人掌 | Y中心点在 110-144，X左边界在 130-170 | 跳跃 (空格) |
-| 飞鸟 (低位) | X在 100-200，Y中心点 > 121 | 跳跃 (空格) |
-| 飞鸟 (高位) | X在 100-200，Y中心点 <= 121 | 下蹲 (下箭头) |
-
-可扩展方向：
-- 使用强化学习替代规则系统
-- 实现进化算法优化决策
-
-### 3. take_screenshots.py - 数据采集
-
-功能：
-- 首次运行时选择显示器和游戏区域 (ROI)
-- 配置保存到 `config.json`
-- 持续截图保存到 `dataset/` 目录
-
-### 4. utils.py - UI 工具
-
-- 加载键盘图标资源
-- 绘制当前按键状态指示器
-- 图像叠加处理
+| 仙人掌 | Y中心点在 100-190，X距离在触发范围内 | 跳跃 |
+| 飞鸟 (低位) | Y中心点 > 150，X距离在触发范围内 | 跳跃 |
+| 飞鸟 (高位) | Y中心点 <= 150，X距离在触发范围内 | 下蹲 |
 
 ## YOLOv8 模型
 
-使用 Roboflow 托管的预训练模型：
-- **Model ID**: `dino-game-rcopt/14`
-- **检测类别**: `cactus` (仙人掌), `bird` (飞鸟)
-- **模型来源**: https://universe.roboflow.com/erol4/dino-game-rcopt
-
-模型会在首次运行时自动下载到本地。
+使用本地训练的 YOLOv8 模型：
+- **模型路径**: `weights/yolo26n_dino_260418.pt`
+- **检测类别**: `dino` (恐龙), `cactus` (仙人掌), `bird` (飞鸟), `restart` (重新开始)
 
 ## 配置文件
 
@@ -157,21 +244,22 @@ while True:
 
 | 包名 | 用途 |
 |-----|------|
-| inference-gpu | YOLOv8 模型推理 (GPU 加速) |
+| ultralytics | YOLOv8 模型推理 |
+| stable-baselines3 | PPO 强化学习算法 |
+| gymnasium | 强化学习环境接口 |
 | pynput | 键盘事件模拟 |
 | supervision | 目标检测可视化标注 |
-| opencv-python | 图像处理 (通过依赖传递) |
+| opencv-python | 图像处理 |
 | mss | 屏幕截图捕获 |
 | numpy | 数值计算 |
-
-> 注意：如果没有 NVIDIA GPU，可将 `inference-gpu` 替换为 `inference`。
+| keyboard | 按键检测（用于训练中断） |
 
 ## 扩展开发建议
 
-1. **改进决策系统**: 将 `controller.py` 中的规则替换为神经网络或强化学习
-2. **自定义模型**: 使用采集的数据集训练专属 YOLOv8 模型
-3. **多游戏支持**: 扩展架构以支持其他游戏的自动化
-4. **性能优化**: 使用多线程分离截图和推理过程
+1. **改进奖励函数**: 调整奖励参数或添加新的奖励项
+2. **自定义网络架构**: 修改 `src/rl/train.py` 中的 `policy_kwargs`
+3. **多游戏支持**: 扩展 `src/rl/env.py` 以支持其他游戏
+4. **数据采集**: 使用 `src/core/screen.py` 采集更多训练数据
 
 ## 常见问题
 
@@ -180,8 +268,13 @@ while True:
 
 ### Q: 检测不准确怎么办？
 - 确保游戏区域选择正确
-- 调整 `play_game.py` 中的置信度阈值 (默认 0.6)
-- 使用 `take_screenshots.py` 采集更多数据训练自定义模型
+- 调整 `src/core/detector.py` 中的置信度阈值（默认 0.6）
+- 采集更多数据训练自定义 YOLO 模型
+
+### Q: 训练不收敛怎么办？
+- 调整学习率（尝试 1e-4 到 1e-3）
+- 增加训练步数
+- 检查奖励函数设计是否合理
 
 ### Q: GPU 加速不生效？
-确保安装了 CUDA 和 cuDNN，并使用 `inference-gpu` 包。
+确保安装了 CUDA 和 cuDNN，PyTorch 会自动使用 GPU。

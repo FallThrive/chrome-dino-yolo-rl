@@ -14,6 +14,9 @@ dependencies = [
     "torch>=2.11.0",
     "torchvision>=0.26.0",
     "ultralytics>=8.4.38",
+    "stable-baselines3>=2.0.0",
+    "gymnasium>=0.29.0",
+    "keyboard>=0.13.5",
 ]
 
 [[tool.uv.index]]

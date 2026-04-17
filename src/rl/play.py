@@ -1,0 +1,181 @@
+import argparse
+import os
+import time
+import cv2
+import numpy as np
+
+from stable_baselines3 import PPO
+
+from ..core.detector import DinoDetector
+from ..core.screen import capture_screenshot
+from ..core.keyboard import KeyboardController
+from ..utils.visualization import draw_key_indicators
+from .env import DinoGameEnv
+
+
+def find_latest_model(base_path: str = "weights/rl") -> str:
+    """Find the latest model in the weights directory."""
+    if not os.path.exists(base_path):
+        return None
+    
+    subdirs = [d for d in os.listdir(base_path) 
+               if os.path.isdir(os.path.join(base_path, d)) and d != "best" and d != "checkpoints"]
+    
+    if not subdirs:
+        best_path = os.path.join(base_path, "best", "model.zip")
+        if os.path.exists(best_path):
+            return best_path
+        return None
+    
+    subdirs.sort(reverse=True)
+    
+    for subdir in subdirs:
+        best_path = os.path.join(base_path, subdir, "best", "model.zip")
+        if os.path.exists(best_path):
+            return best_path
+        
+        final_path = os.path.join(base_path, subdir, "final_model.zip")
+        if os.path.exists(final_path):
+            return final_path
+        
+        checkpoint_dir = os.path.join(base_path, subdir, "checkpoints")
+        if os.path.exists(checkpoint_dir):
+            checkpoints = [f for f in os.listdir(checkpoint_dir) if f.endswith('.zip')]
+            if checkpoints:
+                checkpoints.sort(reverse=True)
+                return os.path.join(checkpoint_dir, checkpoints[0])
+    
+    return None
+
+
+def play_rl(weights_path: str = None, render: bool = True, use_latest: bool = False):
+    if use_latest or weights_path is None:
+        weights_path = find_latest_model()
+        if weights_path is None:
+            print("No trained model found. Please train a model first.")
+            return
+        print(f"Using latest model: {weights_path}")
+    elif not weights_path.endswith('.zip'):
+        weights_path += '.zip'
+    
+    env = DinoGameEnv(render_mode="human" if render else None)
+    
+    try:
+        model = PPO.load(weights_path, env=env)
+        print(f"Loaded model from {weights_path}")
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        print("Training a new model...")
+        model = PPO("MlpPolicy", env, verbose=1)
+    
+    keyboard = KeyboardController()
+    detector = DinoDetector()
+    
+    keyboard_img = None
+    
+    print("=" * 50)
+    print("Playing Chrome Dino Game with RL Agent")
+    print("=" * 50)
+    print(f"Model: {weights_path}")
+    print("Press 'Q' to quit")
+    print("=" * 50)
+    
+    obs, _ = env.reset()
+    done = False
+    total_reward = 0
+    step_count = 0
+    
+    while True:
+        keyboard.update()
+        
+        action, _ = model.predict(obs, deterministic=True)
+        obs, reward, done, truncated, info = env.step(action)
+        total_reward += reward
+        step_count += 1
+        
+        if done or truncated:
+            print(f"Episode ended. Total reward: {total_reward:.2f}, Steps: {step_count}")
+            keyboard.press_enter()
+            time.sleep(0.5)
+            obs, _ = env.reset()
+            total_reward = 0
+            step_count = 0
+            done = False
+        
+        if render:
+            image = capture_screenshot()
+            if image is not None:
+                result = detector.detect(image)
+                
+                if keyboard_img is None:
+                    keyboard_img = np.ones((64 * 2 + 20, image.shape[1], 3), dtype=np.uint8) * 255
+                keyboard_img = draw_key_indicators(keyboard_img, keyboard.get_pressed_keys())
+                
+                action_names = ["NOOP", "UP", "DOWN"]
+                action_text = f"Action: {action_names[action]}"
+                cv2.putText(
+                    image,
+                    action_text,
+                    (10, 28),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    (0, 0, 0),
+                    3,
+                    cv2.LINE_AA,
+                )
+                cv2.putText(
+                    image,
+                    action_text,
+                    (10, 28),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    (255, 255, 255),
+                    1,
+                    cv2.LINE_AA,
+                )
+                
+                reward_text = f"Reward: {total_reward:.2f}"
+                cv2.putText(
+                    image,
+                    reward_text,
+                    (image.shape[1] - 180, 28),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    (0, 0, 0),
+                    3,
+                    cv2.LINE_AA,
+                )
+                cv2.putText(
+                    image,
+                    reward_text,
+                    (image.shape[1] - 180, 28),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    (0, 255, 0),
+                    1,
+                    cv2.LINE_AA,
+                )
+                
+                cv2.imshow("RL Gameplay", cv2.vconcat([image, keyboard_img]))
+                
+                key = cv2.waitKey(1)
+                if key == ord('q'):
+                    break
+    
+    cv2.destroyAllWindows()
+    env.close()
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Play Chrome Dino Game with trained RL agent")
+    parser.add_argument("--weights", type=str, default=None, help="Path to model weights")
+    parser.add_argument("--latest", action="store_true", help="Use the latest trained model")
+    parser.add_argument("--no-render", action="store_true", help="Disable rendering")
+    
+    args = parser.parse_args()
+    
+    play_rl(weights_path=args.weights, render=not args.no_render, use_latest=args.latest)
+
+
+if __name__ == "__main__":
+    main()

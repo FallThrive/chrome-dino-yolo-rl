@@ -208,3 +208,7 @@ __marimo__/
 
 # Dataset from take_screenshot.py
 dataset/
+
+runs/
+weights/
+logs/

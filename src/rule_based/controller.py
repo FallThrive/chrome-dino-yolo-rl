@@ -1,5 +1,11 @@
 import time
 from collections import deque
+from typing import Optional, List
+import numpy as np
+import supervision as sv
+
+from ..core.detector import Detection
+
 
 DEBUG = True
 
@@ -19,10 +25,10 @@ class GameController:
         self.speed_samples = []
         self.max_speed_samples = 5
 
-    def _match_obstacle(self, obstacle, prev_obstacles):
-        class_name = obstacle['class_name']
-        y_centroid = obstacle['y_centroid']
-        x_left = obstacle['x_left']
+    def _match_obstacle(self, obstacle: Detection, prev_obstacles: List[dict]) -> Optional[dict]:
+        class_name = obstacle.label
+        y_centroid = obstacle.y_center
+        x_left = obstacle.x_left
         
         best_match = None
         best_x_diff = float('inf')
@@ -41,7 +47,7 @@ class GameController:
         
         return best_match
 
-    def _calculate_speed(self, detections, current_time):
+    def _calculate_speed(self, detections: sv.Detections, current_time: float):
         current_obstacles = []
         for i in range(len(detections.xyxy)):
             box = detections.xyxy[i]
@@ -60,7 +66,7 @@ class GameController:
             if dt > 0:
                 speeds = []
                 for curr in current_obstacles:
-                    prev = self._match_obstacle(curr, prev_obstacles)
+                    prev = self._match_obstacle_simple(curr, prev_obstacles)
                     if prev:
                         dx = prev['x_left'] - curr['x_left']
                         if dx > 0:
@@ -77,14 +83,21 @@ class GameController:
 
         self.obstacle_history.append((current_obstacles, current_time))
 
-    def _get_trigger_distance_for_obstacle(self, obstacle_width):
+    def _match_obstacle_simple(self, curr: dict, prev_obstacles: List[dict]) -> Optional[dict]:
+        for prev in prev_obstacles:
+            if prev['class_name'] == curr['class_name']:
+                y_diff = abs(prev['y_centroid'] - curr['y_centroid'])
+                if y_diff < 30 and prev['x_left'] > curr['x_left']:
+                    return prev
+        return None
+
+    def _get_trigger_distance_for_obstacle(self, obstacle_width: float) -> float:
         base_distance = self.current_speed * TIME_TO_PEAK
-        width_offset = obstacle_width * 0
-        distance = base_distance + width_offset
+        distance = base_distance
         distance = max(MIN_TRIGGER_DISTANCE, min(MAX_TRIGGER_DISTANCE, distance))
         return distance
 
-    def get_action(self, detections, current_time=None):
+    def get_action(self, detections: sv.Detections, current_time: Optional[float] = None) -> Optional[str]:
         if current_time is None:
             current_time = time.time()
 
@@ -166,16 +179,5 @@ class GameController:
 
         return None
 
-    def get_current_speed(self):
+    def get_current_speed(self) -> float:
         return self.current_speed
-
-
-_controller = GameController()
-
-
-def get_action(detections, current_time=None):
-    return _controller.get_action(detections, current_time)
-
-
-def get_current_speed():
-    return _controller.get_current_speed()
