@@ -42,7 +42,7 @@ class DinoDetector:
         self.confidence = confidence
     
     def detect(self, image: np.ndarray) -> DinoDetectionResult:
-        results = self.model(image)[0]
+        results = self.model(image, verbose=False)[0]
         detections = sv.Detections.from_ultralytics(results)
         detections = detections[detections.confidence > self.confidence]
         

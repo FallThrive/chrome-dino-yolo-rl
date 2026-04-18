@@ -10,7 +10,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.vec_env import DummyVecEnv
 
 from src.rl.env import DinoGameEnv
-from src.rl.callbacks import DinoTrainingCallback, GameResetCallback, EpisodeLimitCallback
+from src.rl.callbacks import GameResetCallback, EpisodeLimitCallback, TrainingStatsCallback
 
 
 def train(
@@ -77,15 +77,15 @@ def train(
         name_prefix="dino_ppo"
     )
     
-    dino_callback = DinoTrainingCallback(save_path, verbose=1)
     reset_callback = GameResetCallback(verbose=0)
-    episode_callback = EpisodeLimitCallback(n_episodes, verbose=1)
+    episode_callback = EpisodeLimitCallback(n_episodes, verbose=0)
+    stats_callback = TrainingStatsCallback(save_path=save_path, print_freq=1, verbose=1)
     
-    callbacks = [checkpoint_callback, dino_callback, reset_callback, episode_callback]
+    callbacks = [checkpoint_callback, reset_callback, episode_callback, stats_callback]
     
-    print("=" * 50)
+    print("=" * 30)
     print("Starting PPO Training for Chrome Dino Game")
-    print("=" * 50)
+    print("=" * 30)
     print(f"Timestamp: {timestamp}")
     print(f"Total timesteps: {total_timesteps}")
     if n_episodes > 0:
@@ -95,15 +95,16 @@ def train(
     print(f"Save frequency: {save_freq}")
     print(f"Save path: {save_path}")
     print(f"Log directory: {log_dir}")
-    print("=" * 50)
+    print("=" * 30)
     print("Press 'Q' to stop training and save the model")
-    print("=" * 50)
+    print("=" * 30)
     
     try:
         model.learn(
             total_timesteps=total_timesteps,
             callback=callbacks,
-            progress_bar=True,
+            progress_bar=False,
+            # tb_log_name="",
         )
     except KeyboardInterrupt:
         print("\nTraining interrupted by user")

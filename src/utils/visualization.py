@@ -2,8 +2,64 @@ import cv2
 import numpy as np
 import os
 from pynput.keyboard import Key
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.core.detector import DinoDetectionResult
 
 ASSETS_DIR = "assets"
+
+
+def draw_detections(image: np.ndarray, result: "DinoDetectionResult") -> np.ndarray:
+    display_img = image.copy()
+    
+    if result.dino is not None:
+        dino = result.dino
+        cv2.rectangle(
+            display_img,
+            (int(dino.x_left), int(dino.y_top)),
+            (int(dino.x_right), int(dino.y_bottom)),
+            (0, 255, 0),
+            2
+        )
+        cv2.putText(
+            display_img,
+            f"dino {dino.confidence:.2f}",
+            (int(dino.x_left), int(dino.y_top) - 5),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            1,
+            cv2.LINE_AA,
+        )
+    
+    for obs in result.obstacles:
+        if obs.label == 'cactus':
+            color = (0, 0, 255)
+        elif obs.label == 'bird':
+            color = (255, 0, 0)
+        else:
+            color = (128, 128, 128)
+        
+        cv2.rectangle(
+            display_img,
+            (int(obs.x_left), int(obs.y_top)),
+            (int(obs.x_right), int(obs.y_bottom)),
+            color,
+            2
+        )
+        cv2.putText(
+            display_img,
+            f"{obs.label} {obs.confidence:.2f}",
+            (int(obs.x_left), int(obs.y_top) - 5),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            color,
+            1,
+            cv2.LINE_AA,
+        )
+    
+    return display_img
 
 
 def load_icon(filename: str) -> np.ndarray:

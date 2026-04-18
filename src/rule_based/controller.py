@@ -1,10 +1,7 @@
 import time
-from collections import deque
 from typing import Optional, List
 import numpy as np
 import supervision as sv
-
-from src.core.detector import Detection
 
 
 DEBUG = True
@@ -20,15 +17,16 @@ JUMP_WINDOW_MARGIN = 0
 
 class GameController:
     def __init__(self):
-        self.obstacle_history = deque(maxlen=4)
+        self.prev_obstacles = []
+        self.prev_time = None
         self.current_speed = 400
         self.speed_samples = []
         self.max_speed_samples = 5
 
-    def _match_obstacle(self, obstacle: Detection, prev_obstacles: List[dict]) -> Optional[dict]:
-        class_name = obstacle.label
-        y_centroid = obstacle.y_center
-        x_left = obstacle.x_left
+    def _match_obstacle(self, obstacle: dict, prev_obstacles: List[dict]) -> Optional[dict]:
+        class_name = obstacle['class_name']
+        y_centroid = obstacle['y_centroid']
+        x_left = obstacle['x_left']
         
         best_match = None
         best_x_diff = float('inf')
@@ -60,13 +58,12 @@ class GameController:
                     'box': box
                 })
 
-        if len(self.obstacle_history) >= 3:
-            prev_obstacles, prev_time = self.obstacle_history[-3]
-            dt = current_time - prev_time
+        if self.prev_time is not None and self.prev_obstacles:
+            dt = current_time - self.prev_time
             if dt > 0:
                 speeds = []
                 for curr in current_obstacles:
-                    prev = self._match_obstacle_simple(curr, prev_obstacles)
+                    prev = self._match_obstacle(curr, self.prev_obstacles)
                     if prev:
                         dx = prev['x_left'] - curr['x_left']
                         if dx > 0:
@@ -81,15 +78,8 @@ class GameController:
                         self.speed_samples.pop(0)
                     self.current_speed = sum(self.speed_samples) / len(self.speed_samples)
 
-        self.obstacle_history.append((current_obstacles, current_time))
-
-    def _match_obstacle_simple(self, curr: dict, prev_obstacles: List[dict]) -> Optional[dict]:
-        for prev in prev_obstacles:
-            if prev['class_name'] == curr['class_name']:
-                y_diff = abs(prev['y_centroid'] - curr['y_centroid'])
-                if y_diff < 30 and prev['x_left'] > curr['x_left']:
-                    return prev
-        return None
+        self.prev_obstacles = current_obstacles
+        self.prev_time = current_time
 
     def _get_trigger_distance_for_obstacle(self, obstacle_width: float) -> float:
         base_distance = self.current_speed * TIME_TO_PEAK
@@ -172,7 +162,7 @@ class GameController:
                       f"range=[{MIN_TRIGGER_DISTANCE},{bird_max:.0f}], in_range={in_range}")
             
             if in_range:
-                if y_centroid > 150:
+                if y_centroid > 110:
                     return "up"
                 else:
                     return "down"

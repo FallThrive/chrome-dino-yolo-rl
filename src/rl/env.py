@@ -9,12 +9,12 @@ import cv2
 from src.core.detector import DinoDetector, Detection
 from src.core.screen import capture_screenshot
 from src.core.keyboard import KeyboardController
-from src.utils.visualization import draw_key_indicators
+from src.utils.visualization import draw_key_indicators, draw_detections
 
 
-SURVIVAL_REWARD = 0.01
-OBSTACLE_PASS_REWARD = 1.0
-GAME_OVER_PENALTY = -2.0
+SURVIVAL_REWARD = 0.1
+OBSTACLE_PASS_REWARD = 0.0
+GAME_OVER_PENALTY = -1.0
 DINO_X_POSITION = 40
 MAX_SPEED = 1500.0
 
@@ -77,33 +77,43 @@ class ObstacleTracker:
 
 
 class SpeedEstimator:
-    def __init__(self, max_history: int = 4):
-        self.history: deque = deque(maxlen=max_history)
-        self.speed_samples: deque = deque(maxlen=5)
+    def __init__(self, max_history: int = 5):
+        self.prev_obstacles = []
+        self.prev_time = None
+        self.speed_samples: deque = deque(maxlen=max_history)
         self.current_speed = 400.0
     
     def reset(self):
-        self.history.clear()
+        self.prev_obstacles = []
+        self.prev_time = None
         self.speed_samples.clear()
         self.current_speed = 400.0
     
     def update(self, obstacles: list, current_time: float) -> float:
         current_obs = [(obs.x_left, obs.y_center, obs.label) for obs in obstacles]
         
-        if len(self.history) >= 3:
-            prev_obs, prev_time = self.history[-3]
-            dt = current_time - prev_time
+        if self.prev_time is not None and self.prev_obstacles:
+            dt = current_time - self.prev_time
             if dt > 0:
                 speeds = []
                 for curr_x, curr_y, curr_label in current_obs:
-                    for prev_x, prev_y, prev_label in prev_obs:
+                    best_prev = None
+                    best_x_diff = float('inf')
+                    
+                    for prev_x, prev_y, prev_label in self.prev_obstacles:
                         if curr_label != prev_label:
                             continue
                         if abs(curr_y - prev_y) > 30:
                             continue
                         if prev_x > curr_x:
-                            dx = prev_x - curr_x
-                            speeds.append(dx / dt)
+                            x_diff = prev_x - curr_x
+                            if x_diff < best_x_diff:
+                                best_x_diff = x_diff
+                                best_prev = (prev_x, prev_y, prev_label)
+                    
+                    if best_prev is not None:
+                        dx = best_prev[0] - curr_x
+                        speeds.append(dx / dt)
                 
                 if speeds:
                     avg_speed = sum(speeds) / len(speeds)
@@ -112,7 +122,8 @@ class SpeedEstimator:
                     if self.speed_samples:
                         self.current_speed = sum(self.speed_samples) / len(self.speed_samples)
         
-        self.history.append((current_obs, current_time))
+        self.prev_obstacles = current_obs
+        self.prev_time = current_time
         return self.current_speed
 
 
@@ -148,6 +159,7 @@ class DinoGameEnv(gym.Env):
         self._current_image = None
         self._last_result = None
         self._window_name = "RL Training"
+        self._window_created = False
         self._total_reward = 0.0
         self._episode_count = 0
     
@@ -281,7 +293,10 @@ class DinoGameEnv(gym.Env):
         if self._current_image is None:
             return
         
-        display_img = self._current_image.copy()
+        if self._last_result is not None:
+            display_img = draw_detections(self._current_image, self._last_result)
+        else:
+            display_img = self._current_image.copy()
         
         action_names = ["NOOP", "UP"] if self.only_up else ["NOOP", "UP", "DOWN"]
         action_text = f"Action: {action_names[self._last_action]}"
@@ -373,6 +388,7 @@ class DinoGameEnv(gym.Env):
         )
         
         cv2.imshow(self._window_name, display_img)
+        self._window_created = True
         cv2.waitKey(1)
     
     def render(self):
@@ -381,4 +397,6 @@ class DinoGameEnv(gym.Env):
     
     def close(self):
         self.keyboard.release_all()
-        cv2.destroyWindow(self._window_name)
+        if self._window_created:
+            cv2.destroyWindow(self._window_name)
+            self._window_created = False

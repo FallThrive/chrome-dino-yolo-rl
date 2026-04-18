@@ -12,7 +12,7 @@ from stable_baselines3 import PPO
 from src.core.detector import DinoDetector
 from src.core.screen import capture_screenshot
 from src.core.keyboard import KeyboardController
-from src.utils.visualization import draw_key_indicators
+from src.utils.visualization import draw_key_indicators, draw_detections
 from src.rl.env import DinoGameEnv
 
 
@@ -51,7 +51,7 @@ def find_latest_model(base_path: str = "weights/rl") -> str:
     return None
 
 
-def play_rl(weights_path: str = None, render: bool = True, use_latest: bool = False, only_up: bool = False):
+def play_rl(weights_path: str = None, use_latest: bool = False, only_up: bool = False):
     if use_latest or weights_path is None:
         weights_path = find_latest_model()
         if weights_path is None:
@@ -61,7 +61,7 @@ def play_rl(weights_path: str = None, render: bool = True, use_latest: bool = Fa
     elif not weights_path.endswith('.zip'):
         weights_path += '.zip'
     
-    env = DinoGameEnv(render_mode="human" if render else None, only_up=only_up)
+    env = DinoGameEnv(render_mode=None, only_up=only_up)
     
     try:
         model = PPO.load(weights_path, env=env)
@@ -108,65 +108,66 @@ def play_rl(weights_path: str = None, render: bool = True, use_latest: bool = Fa
             step_count = 0
             done = False
         
-        if render:
-            image = capture_screenshot()
-            if image is not None:
-                result = detector.detect(image)
-                
-                if keyboard_img is None:
-                    keyboard_img = np.ones((64 * 2 + 20, image.shape[1], 3), dtype=np.uint8) * 255
-                keyboard_img = draw_key_indicators(keyboard_img, keyboard.get_pressed_keys())
-                
-                action_names = ["NOOP", "UP"] if only_up else ["NOOP", "UP", "DOWN"]
-                action_text = f"Action: {action_names[action]}"
-                cv2.putText(
-                    image,
-                    action_text,
-                    (10, 28),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (0, 0, 0),
-                    3,
-                    cv2.LINE_AA,
-                )
-                cv2.putText(
-                    image,
-                    action_text,
-                    (10, 28),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (255, 255, 255),
-                    1,
-                    cv2.LINE_AA,
-                )
-                
-                reward_text = f"Reward: {total_reward:.2f}"
-                cv2.putText(
-                    image,
-                    reward_text,
-                    (image.shape[1] - 180, 28),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (0, 0, 0),
-                    3,
-                    cv2.LINE_AA,
-                )
-                cv2.putText(
-                    image,
-                    reward_text,
-                    (image.shape[1] - 180, 28),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (0, 255, 0),
-                    1,
-                    cv2.LINE_AA,
-                )
-                
-                cv2.imshow("RL Gameplay", cv2.vconcat([image, keyboard_img]))
-                
-                key = cv2.waitKey(1)
-                if key == ord('q'):
-                    break
+        image = capture_screenshot()
+        if image is not None:
+            result = detector.detect(image)
+            
+            display_img = draw_detections(image, result)
+            
+            if keyboard_img is None:
+                keyboard_img = np.ones((64 * 2 + 20, image.shape[1], 3), dtype=np.uint8) * 255
+            keyboard_img = draw_key_indicators(keyboard_img, keyboard.get_pressed_keys())
+            
+            action_names = ["NOOP", "UP"] if only_up else ["NOOP", "UP", "DOWN"]
+            action_text = f"Action: {action_names[action]}"
+            cv2.putText(
+                display_img,
+                action_text,
+                (10, 28),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 0, 0),
+                3,
+                cv2.LINE_AA,
+            )
+            cv2.putText(
+                display_img,
+                action_text,
+                (10, 28),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (255, 255, 255),
+                1,
+                cv2.LINE_AA,
+            )
+            
+            reward_text = f"Reward: {total_reward:.2f}"
+            cv2.putText(
+                display_img,
+                reward_text,
+                (display_img.shape[1] - 180, 28),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 0, 0),
+                3,
+                cv2.LINE_AA,
+            )
+            cv2.putText(
+                display_img,
+                reward_text,
+                (display_img.shape[1] - 180, 28),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 255, 0),
+                1,
+                cv2.LINE_AA,
+            )
+            
+            cv2.imshow("RL Gameplay", cv2.vconcat([display_img, keyboard_img]))
+            
+            key = cv2.waitKey(1)
+            if key == ord('q'):
+                break
     
     cv2.destroyAllWindows()
     env.close()
@@ -176,12 +177,11 @@ def main():
     parser = argparse.ArgumentParser(description="Play Chrome Dino Game with trained RL agent")
     parser.add_argument("--weights", type=str, default=None, help="Path to model weights")
     parser.add_argument("--latest", action="store_true", help="Use the latest trained model")
-    parser.add_argument("--no-render", action="store_true", help="Disable rendering")
     parser.add_argument("--only-up", action="store_true", help="Use only UP action (no DOWN)")
     
     args = parser.parse_args()
     
-    play_rl(weights_path=args.weights, render=not args.no_render, use_latest=args.latest, only_up=args.only_up)
+    play_rl(weights_path=args.weights, use_latest=args.latest, only_up=args.only_up)
 
 
 if __name__ == "__main__":
