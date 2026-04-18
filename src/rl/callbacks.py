@@ -52,16 +52,25 @@ class DinoTrainingCallback(BaseCallback):
         return True
     
     def _on_rollout_end(self) -> None:
-        if len(self.model.ep_info_buffer) > 0:
-            ep_rewards = [ep_info["r"] for ep_info in self.model.ep_info_buffer]
-            mean_reward = np.mean(ep_rewards)
-            
-            if mean_reward > self.best_mean_reward:
-                self.best_mean_reward = mean_reward
-                best_path = os.path.join(self.save_path, "best", "model.zip")
-                self.model.save(best_path)
-                if self.verbose > 0:
-                    print(f"New best model saved! Mean reward: {mean_reward:.2f}")
+        try:
+            if hasattr(self.model, 'ep_info_buffer') and len(self.model.ep_info_buffer) > 0:
+                ep_rewards = []
+                for ep_info in self.model.ep_info_buffer:
+                    if isinstance(ep_info, dict) and "r" in ep_info:
+                        ep_rewards.append(ep_info["r"])
+                
+                if ep_rewards:
+                    mean_reward = np.mean(ep_rewards)
+                    
+                    if mean_reward > self.best_mean_reward:
+                        self.best_mean_reward = mean_reward
+                        best_path = os.path.join(self.save_path, "best", "model.zip")
+                        self.model.save(best_path)
+                        if self.verbose > 0:
+                            print(f"New best model saved! Mean reward: {mean_reward:.2f}")
+        except Exception as e:
+            if self.verbose > 0:
+                print(f"Warning: Could not process ep_info_buffer: {e}")
 
 
 class GameResetCallback(BaseCallback):

@@ -262,8 +262,15 @@ class DinoGameEnv(gym.Env):
             "passed_obstacles": len(self.obstacle_tracker.passed_obstacles),
             "step": self._step_count,
             "total_reward": self._total_reward,
-            "episode": self._episode_count
+            "episode_count": self._episode_count
         }
+        
+        if terminated:
+            info["episode"] = {
+                "r": self._total_reward,
+                "l": self._step_count,
+                "t": time.time()
+            }
         
         if self.render_mode == "human":
             self._render_frame()
