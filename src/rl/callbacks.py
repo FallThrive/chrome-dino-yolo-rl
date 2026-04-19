@@ -71,7 +71,7 @@ class TrainingStatsCallback(BaseCallback):
         os.system('cls' if os.name == 'nt' else 'clear')
         
         print("=" * 30)
-        print("   Chrome Dino RL Training Progress")
+        print("Chrome Dino RL Training Progress")
         print("=" * 30)
         print(f"  Timesteps:     {timesteps:,}")
         print(f"  Episodes:      {self.episode_count}")

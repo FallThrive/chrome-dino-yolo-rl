@@ -12,9 +12,9 @@ from src.core.keyboard import KeyboardController
 from src.utils.visualization import draw_key_indicators, draw_detections
 
 
-SURVIVAL_REWARD = 0.1
-OBSTACLE_PASS_REWARD = 0.0
-GAME_OVER_PENALTY = -1.0
+SURVIVAL_REWARD = 0.01
+OBSTACLE_PASS_REWARD = 1.0
+GAME_OVER_PENALTY = -2.0
 DINO_X_POSITION = 40
 MAX_SPEED = 1500.0
 
@@ -139,7 +139,7 @@ class DinoGameEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-1.0,
             high=1.0,
-            shape=(12,),
+            shape=(7,),
             dtype=np.float32
         )
         
@@ -164,7 +164,7 @@ class DinoGameEnv(gym.Env):
         self._episode_count = 0
     
     def _build_state(self, dino_y: Optional[float], obstacles: list, speed: float) -> np.ndarray:
-        state = np.full(12, -1.0, dtype=np.float32)
+        state = np.full(7, -1.0, dtype=np.float32)
         
         if dino_y is not None:
             state[0] = dino_y / self.image_height
@@ -182,15 +182,7 @@ class DinoGameEnv(gym.Env):
             state[4] = obs.width / self.image_width
             state[5] = obs.height / self.image_height
         
-        if len(obstacles_right) >= 2:
-            obs = obstacles_right[1]
-            state[6] = 0.0 if obs.label == 'cactus' else 1.0
-            state[7] = obs.x_left / self.image_width
-            state[8] = obs.y_center / self.image_height
-            state[9] = obs.width / self.image_width
-            state[10] = obs.height / self.image_height
-        
-        state[11] = speed / MAX_SPEED
+        state[6] = speed / MAX_SPEED
         
         return state
     
@@ -233,6 +225,36 @@ class DinoGameEnv(gym.Env):
         return state, {}
     
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, dict]:
+        pre_image = capture_screenshot()
+        if pre_image is not None:
+            pre_result = self.detector.detect(pre_image)
+            if pre_result.has_restart:
+                self._current_image = pre_image
+                self._last_result = pre_result
+                reward = GAME_OVER_PENALTY
+                self._total_reward += reward
+                self._episode_count += 1
+
+                dino_y = pre_result.dino.y_center if pre_result.dino else None
+                state = self._build_state(dino_y, pre_result.obstacles, self.speed_estimator.current_speed)
+                info = {
+                    "speed": self.speed_estimator.current_speed,
+                    "passed_obstacles": len(self.obstacle_tracker.passed_obstacles),
+                    "step": self._step_count,
+                    "total_reward": self._total_reward,
+                    "episode_count": self._episode_count,
+                    "episode": {
+                        "r": self._total_reward,
+                        "l": self._step_count,
+                        "t": time.time(),
+                    },
+                }
+
+                if self.render_mode == "human":
+                    self._render_frame()
+
+                return state, reward, True, False, info
+
         self._step_count += 1
         self._last_action = action
         
@@ -256,7 +278,6 @@ class DinoGameEnv(gym.Env):
         
         reward = SURVIVAL_REWARD
         reward += len(new_passed) * OBSTACLE_PASS_REWARD
-        self._total_reward += reward
         
         terminated = False
         truncated = False
@@ -265,6 +286,8 @@ class DinoGameEnv(gym.Env):
             reward += GAME_OVER_PENALTY
             terminated = True
             self._episode_count += 1
+
+        self._total_reward += reward
         
         dino_y = result.dino.y_center if result.dino else None
         state = self._build_state(dino_y, result.obstacles, speed)
