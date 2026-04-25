@@ -1,7 +1,7 @@
 [project]
-name = "chrome-dino-bot"
-version = "0.1.0"
-description = "Add your description here"
+name = "chrome-dino-yolo-rl"
+version = "1.0.0"
+description = "Chrome Dino Game bot using YOLO26 and Reinforcement Learning (PPO)"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

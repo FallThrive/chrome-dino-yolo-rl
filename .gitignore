@@ -187,7 +187,6 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file. However, if you prefer, 
 #  you could uncomment the following to ignore the entire vscode folder
 .vscode/
-.trae/
 
 # Ruff stuff:
 .ruff_cache/
@@ -202,17 +201,25 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Trae IDE
+.trae/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Dataset from take_screenshot.py
+# Dataset from take_screenshots.py
 data/
 dataset/
 
+# YOLO training results
 runs/
-weights/
+
+# Model weights
+weights/rl/
+
+# TensorBoard logs
 logs/
 
 tmp/
