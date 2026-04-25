@@ -1,9 +1,11 @@
+gymnasium
+keyboard
 mss
 numpy
 opencv-contrib-python
-ultralytics
+stable-baselines3
 supervision
-pynput
-python-dotenv
+tensorboard
 torch
 torchvision
+ultralytics
