@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+import time
 from pynput.keyboard import Key
 from typing import TYPE_CHECKING
 
@@ -8,6 +9,65 @@ if TYPE_CHECKING:
     from src.core.detector import DinoDetectionResult
 
 ASSETS_DIR = "assets"
+
+
+class FPSCounter:
+    def __init__(self, window_size: int = 30):
+        self.window_size = window_size
+        self.timestamps: list = []
+        self._last_fps = 0.0
+    
+    def update(self) -> float:
+        current_time = time.time()
+        self.timestamps.append(current_time)
+        
+        while len(self.timestamps) > self.window_size:
+            self.timestamps.pop(0)
+        
+        if len(self.timestamps) >= 2:
+            time_span = self.timestamps[-1] - self.timestamps[0]
+            if time_span > 0:
+                self._last_fps = (len(self.timestamps) - 1) / time_span
+        
+        return self._last_fps
+    
+    @property
+    def fps(self) -> float:
+        return self._last_fps
+    
+    def reset(self):
+        self.timestamps.clear()
+        self._last_fps = 0.0
+
+
+def draw_fps(image: np.ndarray, fps: float, position: tuple = None) -> np.ndarray:
+    if position is None:
+        position = (image.shape[1] // 2 - 40, 28)
+    
+    fps_text = f"FPS: {fps:.1f}"
+    
+    cv2.putText(
+        image,
+        fps_text,
+        position,
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (0, 0, 0),
+        3,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        image,
+        fps_text,
+        position,
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (0, 255, 255),
+        1,
+        cv2.LINE_AA,
+    )
+    
+    return image
 
 
 def draw_detections(image: np.ndarray, result: "DinoDetectionResult") -> np.ndarray:

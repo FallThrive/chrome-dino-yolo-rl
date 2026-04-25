@@ -9,7 +9,7 @@ import cv2
 from src.core.detector import DinoDetector, Detection
 from src.core.screen import capture_screenshot
 from src.core.keyboard import KeyboardController
-from src.utils.visualization import draw_key_indicators, draw_detections
+from src.utils.visualization import draw_key_indicators, draw_detections, FPSCounter, draw_fps
 
 
 SURVIVAL_REWARD = 0.01
@@ -149,6 +149,7 @@ class DinoGameEnv(gym.Env):
         self.keyboard = KeyboardController()
         self.obstacle_tracker = ObstacleTracker()
         self.speed_estimator = SpeedEstimator()
+        self.fps_counter = FPSCounter()
         
         self.render_mode = render_mode
         self.image_width = 1129
@@ -191,6 +192,7 @@ class DinoGameEnv(gym.Env):
         
         self.obstacle_tracker.reset()
         self.speed_estimator.reset()
+        self.fps_counter.reset()
         self._last_action = 0
         self._step_count = 0
         self._total_reward = 0.0
@@ -225,43 +227,38 @@ class DinoGameEnv(gym.Env):
         return state, {}
     
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, dict]:
-        pre_image = capture_screenshot()
-        if pre_image is not None:
-            pre_result = self.detector.detect(pre_image)
-            if pre_result.has_restart:
-                self._current_image = pre_image
-                self._last_result = pre_result
-                reward = GAME_OVER_PENALTY
-                self._total_reward += reward
-                self._episode_count += 1
+        if self._last_result is not None and self._last_result.has_restart:
+            reward = GAME_OVER_PENALTY
+            self._total_reward += reward
+            self._episode_count += 1
 
-                dino_y = pre_result.dino.y_center if pre_result.dino else None
-                state = self._build_state(dino_y, pre_result.obstacles, self.speed_estimator.current_speed)
-                info = {
-                    "speed": self.speed_estimator.current_speed,
-                    "passed_obstacles": len(self.obstacle_tracker.passed_obstacles),
-                    "step": self._step_count,
-                    "total_reward": self._total_reward,
-                    "episode_count": self._episode_count,
-                    "episode": {
-                        "r": self._total_reward,
-                        "l": self._step_count,
-                        "t": time.time(),
-                    },
-                }
+            dino_y = self._last_result.dino.y_center if self._last_result.dino else None
+            state = self._build_state(dino_y, self._last_result.obstacles, self.speed_estimator.current_speed)
+            info = {
+                "speed": self.speed_estimator.current_speed,
+                "passed_obstacles": len(self.obstacle_tracker.passed_obstacles),
+                "step": self._step_count,
+                "total_reward": self._total_reward,
+                "episode_count": self._episode_count,
+                "episode": {
+                    "r": self._total_reward,
+                    "l": self._step_count,
+                    "t": time.time(),
+                },
+            }
 
-                if self.render_mode == "human":
-                    self._render_frame()
+            if self.render_mode == "human":
+                self._render_frame()
 
-                return state, reward, True, False, info
+            return state, reward, True, False, info
 
         self._step_count += 1
         self._last_action = action
         
         self.keyboard.update()
         self.keyboard.execute_action(action)
-        
-        time.sleep(0.02)
+
+        # time.sleep(0.02)
         
         image = capture_screenshot()
         if image is None:
@@ -271,6 +268,8 @@ class DinoGameEnv(gym.Env):
         result = self.detector.detect(image)
         self._last_result = result
         current_time = time.time()
+        
+        self.fps_counter.update()
         
         speed = self.speed_estimator.update(result.obstacles, current_time)
         
@@ -320,6 +319,8 @@ class DinoGameEnv(gym.Env):
             display_img = draw_detections(self._current_image, self._last_result)
         else:
             display_img = self._current_image.copy()
+        
+        draw_fps(display_img, self.fps_counter.fps)
         
         action_names = ["NOOP", "UP"] if self.only_up else ["NOOP", "UP", "DOWN"]
         action_text = f"Action: {action_names[self._last_action]}"

@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from src.core.detector import DinoDetector
 from src.core.screen import capture_screenshot
 from src.core.keyboard import KeyboardController
-from src.utils.visualization import draw_key_indicators, draw_detections
+from src.utils.visualization import draw_key_indicators, draw_detections, FPSCounter, draw_fps
 from src.rule_based.controller import GameController
 
 
@@ -18,6 +18,7 @@ def play_rule_based():
     detector = DinoDetector()
     keyboard = KeyboardController()
     controller = GameController()
+    fps_counter = FPSCounter()
     
     keyboard_img = None
     game_active = True
@@ -52,6 +53,9 @@ def play_rule_based():
                 keyboard.press_duck()
 
         display_img = draw_detections(image, result)
+        
+        fps_counter.update()
+        draw_fps(display_img, fps_counter.fps)
 
         if keyboard_img is None:
             keyboard_img = np.ones((64 * 2 + 20, image.shape[1], 3), dtype=np.uint8) * 255

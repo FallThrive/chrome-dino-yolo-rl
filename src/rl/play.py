@@ -9,10 +9,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from stable_baselines3 import PPO
 
-from src.core.detector import DinoDetector
-from src.core.screen import capture_screenshot
 from src.core.keyboard import KeyboardController
-from src.utils.visualization import draw_key_indicators, draw_detections
+from src.utils.visualization import draw_key_indicators, draw_detections, FPSCounter, draw_fps
 from src.rl.env import DinoGameEnv
 
 
@@ -72,7 +70,7 @@ def play_rl(weights_path: str = None, use_latest: bool = False, only_up: bool = 
         model = PPO("MlpPolicy", env, verbose=1)
     
     keyboard = KeyboardController()
-    detector = DinoDetector()
+    fps_counter = FPSCounter()
     
     keyboard_img = None
     
@@ -104,15 +102,19 @@ def play_rl(weights_path: str = None, use_latest: bool = False, only_up: bool = 
             keyboard.press_enter()
             time.sleep(0.5)
             obs, _ = env.reset()
+            fps_counter.reset()
             total_reward = 0
             step_count = 0
             done = False
         
-        image = capture_screenshot()
-        if image is not None:
-            result = detector.detect(image)
+        if env._current_image is not None and env._last_result is not None:
+            image = env._current_image
+            result = env._last_result
             
             display_img = draw_detections(image, result)
+            
+            fps_counter.update()
+            draw_fps(display_img, fps_counter.fps)
             
             if keyboard_img is None:
                 keyboard_img = np.ones((64 * 2 + 20, image.shape[1], 3), dtype=np.uint8) * 255
