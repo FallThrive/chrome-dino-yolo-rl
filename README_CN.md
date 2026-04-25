@@ -56,7 +56,7 @@ uv run python src/rule_based/play.py
 1. **选择显示器**：输入显示器编号（通常是 0）
 2. **选择游戏区域**：用鼠标框选恐龙游戏区域，按 **ENTER** 确认
 
-> 配置会自动保存到 `config.json`，下次运行无需重新选择
+> 配置会自动保存到 `cfg/roi.json`，下次运行无需重新选择
 
 #### 步骤 3: 观察运行效果
 
@@ -92,7 +92,9 @@ uv run python src/rl/train.py
 - 最优模型保存到 `weights/rl/<timestamp>/best/model.zip`
 - 最终模型保存到 `weights/rl/<timestamp>/final_model.zip`
 
-#### 使用训练好的模型玩游戏
+#### 使用训练好的模型进行游戏
+
+由于不同ROI下的模型训练结果不同，因此这里不提供默认训练的PPO模型。
 
 ```bash
 # 使用最新的训练模型
@@ -173,7 +175,6 @@ chrome-dino-yolo-rl/
 ├── dataset/                     # 训练数据集目录
 ├── runs/                        # YOLO 训练结果
 ├── assets/                      # UI 图标资源
-├── config.json                  # ROI 配置文件 (运行时生成)
 ├── pyproject.toml               # 项目配置
 ├── requirements.txt             # 依赖列表
 └── README_CN.md                 # 本文档（中文）
@@ -189,7 +190,7 @@ chrome-dino-yolo-rl/
 
 ## 配置文件
 
-### config.json (运行时生成)
+### roi.json (运行时生成)
 
 ```json
 {
@@ -220,7 +221,7 @@ chrome-dino-yolo-rl/
 
 ### Q: 如何重新选择游戏区域？
 
-删除 `config.json` 文件后重新运行程序。
+删除 `cfg/roi.json` 文件后重新运行程序。
 
 ### Q: 检测不准确怎么办？
 
@@ -245,12 +246,10 @@ chrome-dino-yolo-rl/
 3. **多游戏支持**: 扩展 `src/rl/env.py` 以支持其他游戏
 4. **数据采集**: 使用 `src/core/take_screenshots.py` 采集更多训练数据
 
-***
+---
 
-## Acknowledgements
-
-This project is refactored based on [Erol444/chrome-dino-bot](https://github.com/Erol444/chrome-dino-bot.git). Thanks to the original author for the inspiration and foundation.
-
-## 致谢
+## 致谢 Acknowledgements
 
 本项目基于 [Erol444/chrome-dino-bot](https://github.com/Erol444/chrome-dino-bot) 项目重构而来。
+
+This project is refactored based on [Erol444/chrome-dino-bot](https://github.com/Erol444/chrome-dino-bot).

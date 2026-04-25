@@ -54,7 +54,7 @@ On first run, you will be prompted to:
 1. **Select Monitor**: Enter monitor number (usually 0)
 2. **Select Game Area**: Use mouse to select the dino game area, press **ENTER** to confirm
 
-> Configuration will be automatically saved to `config.json`, no need to reselect next time
+> Configuration will be automatically saved to `cfg/roi.json`, no need to reselect next time
 
 #### Step 3: Observe Running Results
 - The program will display the game window with detection boxes and labels
@@ -88,6 +88,8 @@ During training:
 - Final model saved to `weights/rl/<timestamp>/final_model.zip`
 
 #### Play Game with Trained Model
+
+As the model training results vary depending on the ROI, a pre-trained PPO model is not provided here.
 
 ```bash
 # Use the latest trained model
@@ -167,7 +169,6 @@ chrome-dino-yolo-rl/
 ├── dataset/                     # Training dataset directory
 ├── runs/                        # YOLO training results
 ├── assets/                      # UI icon resources
-├── config.json                  # ROI configuration (generated at runtime)
 ├── pyproject.toml               # Project configuration
 ├── requirements.txt             # Dependencies
 └── README.md                    # This document
@@ -182,7 +183,7 @@ Uses locally trained YOLO26 model:
 
 ## Configuration
 
-### config.json (Generated at Runtime)
+### roi.json (Generated at Runtime)
 
 ```json
 {
@@ -212,7 +213,7 @@ Uses locally trained YOLO26 model:
 ## FAQ
 
 ### Q: How to reselect the game area?
-Delete the `config.json` file and run the program again.
+Delete the `cfg/roi.json` file and run the program again.
 
 ### Q: Detection is not accurate?
 - Ensure the game area is selected correctly

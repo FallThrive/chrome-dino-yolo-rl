@@ -49,7 +49,7 @@ uv run python src/rule_based/play.py
 1. **选择显示器**: 输入显示器编号 (通常是 0)
 2. **选择游戏区域**: 用鼠标框选恐龙游戏区域，按 **ENTER** 确认
 
-> 配置会自动保存到 `config.json`，下次运行无需重新选择
+> 配置会自动保存到 `cfg/roi.json`，下次运行无需重新选择
 
 #### 步骤 3: 观察运行效果
 
@@ -166,7 +166,6 @@ chrome-dino-bot/
 ├── dataset/                     # 训练数据集目录
 ├── runs/                        # YOLO 训练结果
 ├── assets/                      # UI 图标资源
-├── config.json                  # ROI 配置文件 (运行时生成)
 ├── pyproject.toml               # 项目配置
 ├── requirements.txt             # 依赖列表
 └── AGENTS.md                    # 本文档
@@ -281,7 +280,7 @@ uv run python src/core/take_screenshots.py
 
 ## 配置文件
 
-### config.json (运行时生成)
+### roi.json (运行时生成)
 
 ```json
 {
@@ -319,7 +318,7 @@ uv run python src/core/take_screenshots.py
 
 ### Q: 如何重新选择游戏区域？
 
-删除 `config.json` 文件后重新运行程序。
+删除 `cfg/roi.json` 文件后重新运行程序。
 
 ### Q: 检测不准确怎么办？
 

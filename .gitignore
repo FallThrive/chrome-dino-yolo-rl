@@ -217,7 +217,7 @@ dataset/
 runs/
 
 # Model weights
-weights/
+weights/rl/
 
 # TensorBoard logs
 logs/
