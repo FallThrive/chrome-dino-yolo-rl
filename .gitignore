@@ -222,4 +222,7 @@ weights/rl/
 # TensorBoard logs
 logs/
 
+# ROI configuration
+cfg/roi.json
+
 tmp/
