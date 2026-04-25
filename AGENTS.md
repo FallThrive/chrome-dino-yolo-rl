@@ -2,7 +2,7 @@
 
 ## 项目简介
 
-这是一个使用 YOLOv8 目标检测模型自动玩 Chrome 恐龙游戏的 AI 机器人项目。项目支持两种控制方式：
+这是一个使用 YOLO26 目标检测模型自动玩 Chrome 恐龙游戏的 AI 机器人项目。项目支持两种控制方式：
 
 1. **基于规则的控制**：使用预设规则进行游戏决策
 2. **强化学习控制**：使用 PPO（Proximal Policy Optimization）算法训练智能体
@@ -10,7 +10,7 @@
 ## 技术栈
 
 - **Python 3.12+**
-- **YOLOv8** - 目标检测模型 (通过 Ultralytics)
+- **YOLO26** - 目标检测模型 (通过 Ultralytics)
 - **Stable Baselines3** - 强化学习框架 (PPO算法)
 - **Gymnasium** - 强化学习环境接口
 - **OpenCV** - 图像处理
@@ -144,7 +144,7 @@ chrome-dino-bot/
 
 ### 1. src/core/detector.py - YOLO检测器
 
-封装 YOLOv8 模型，提供统一的检测接口：
+封装 YOLO26 模型，提供统一的检测接口：
 
 ```python
 from src.core import DinoDetector
@@ -222,9 +222,9 @@ keyboard.update()        # 更新按键状态
 | 飞鸟 (低位) | Y中心点 > 150，X距离在触发范围内 | 跳跃 |
 | 飞鸟 (高位) | Y中心点 <= 150，X距离在触发范围内 | 下蹲 |
 
-## YOLOv8 模型
+## YOLO26 模型
 
-使用本地训练的 YOLOv8 模型：
+使用本地训练的 YOLO26 模型：
 - **模型路径**: `weights/yolo26n_dino_260418.pt`
 - **检测类别**: `dino` (恐龙), `cactus` (仙人掌), `bird` (飞鸟), `restart` (重新开始)
 
@@ -246,7 +246,7 @@ keyboard.update()        # 更新按键状态
 
 | 包名 | 用途 |
 |-----|------|
-| ultralytics | YOLOv8 模型推理 |
+| ultralytics | YOLO26 模型推理 |
 | stable-baselines3 | PPO 强化学习算法 |
 | gymnasium | 强化学习环境接口 |
 | pynput | 键盘事件模拟 |
