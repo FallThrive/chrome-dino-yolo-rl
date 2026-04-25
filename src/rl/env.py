@@ -9,7 +9,7 @@ import cv2
 from src.core.detector import DinoDetector, Detection
 from src.core.screen import capture_screenshot
 from src.core.keyboard import KeyboardController
-from src.utils.visualization import draw_key_indicators, draw_detections, FPSCounter, draw_fps
+from src.utils.visualization import draw_detections, FPSCounter, draw_fps, draw_key_indicators
 
 
 SURVIVAL_REWARD = 0.01
@@ -163,6 +163,7 @@ class DinoGameEnv(gym.Env):
         self._window_created = False
         self._total_reward = 0.0
         self._episode_count = 0
+        self._keyboard_img = None
     
     def _build_state(self, dino_y: Optional[float], obstacles: list, speed: float) -> np.ndarray:
         state = np.full(7, -1.0, dtype=np.float32)
@@ -322,11 +323,10 @@ class DinoGameEnv(gym.Env):
         
         draw_fps(display_img, self.fps_counter.fps)
         
-        action_names = ["NOOP", "UP"] if self.only_up else ["NOOP", "UP", "DOWN"]
-        action_text = f"Action: {action_names[self._last_action]}"
+        passed_text = f"Passed: {len(self.obstacle_tracker.passed_obstacles)}"
         cv2.putText(
             display_img,
-            action_text,
+            passed_text,
             (10, 25),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
@@ -336,7 +336,7 @@ class DinoGameEnv(gym.Env):
         )
         cv2.putText(
             display_img,
-            action_text,
+            passed_text,
             (10, 25),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
@@ -367,28 +367,6 @@ class DinoGameEnv(gym.Env):
             cv2.LINE_AA,
         )
         
-        passed_text = f"Passed: {len(self.obstacle_tracker.passed_obstacles)}"
-        cv2.putText(
-            display_img,
-            passed_text,
-            (10, 50),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 0, 0),
-            2,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            display_img,
-            passed_text,
-            (10, 50),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
-        
         episode_text = f"Episode: {self._episode_count}"
         cv2.putText(
             display_img,
@@ -411,7 +389,11 @@ class DinoGameEnv(gym.Env):
             cv2.LINE_AA,
         )
         
-        cv2.imshow(self._window_name, display_img)
+        if self._keyboard_img is None:
+            self._keyboard_img = np.ones((64 * 2 + 20, display_img.shape[1], 3), dtype=np.uint8) * 255
+        self._keyboard_img = draw_key_indicators(self._keyboard_img, self.keyboard.get_pressed_keys())
+        
+        cv2.imshow(self._window_name, cv2.vconcat([display_img, self._keyboard_img]))
         self._window_created = True
         cv2.waitKey(1)
     

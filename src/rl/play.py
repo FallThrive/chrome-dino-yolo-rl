@@ -91,8 +91,6 @@ def play_rl(weights_path: str = None, use_latest: bool = False, only_up: bool = 
     running = True
     
     while running:
-        kb.update()
-        
         if keyboard.is_pressed('q') or keyboard.is_pressed('Q'):
             running = False
             break
@@ -124,13 +122,13 @@ def play_rl(weights_path: str = None, use_latest: bool = False, only_up: bool = 
             
             if keyboard_img is None:
                 keyboard_img = np.ones((64 * 2 + 20, image.shape[1], 3), dtype=np.uint8) * 255
-            keyboard_img = draw_key_indicators(keyboard_img, kb.get_pressed_keys())
+            keyboard_img = draw_key_indicators(keyboard_img, env.keyboard.get_pressed_keys())
             
-            action_names = ["NOOP", "UP"] if only_up else ["NOOP", "UP", "DOWN"]
-            action_text = f"Action: {action_names[action]}"
+            passed_count = len(env.obstacle_tracker.passed_obstacles)
+            passed_text = f"Passed: {passed_count}"
             cv2.putText(
                 display_img,
-                action_text,
+                passed_text,
                 (10, 28),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.8,
@@ -140,7 +138,7 @@ def play_rl(weights_path: str = None, use_latest: bool = False, only_up: bool = 
             )
             cv2.putText(
                 display_img,
-                action_text,
+                passed_text,
                 (10, 28),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.8,
