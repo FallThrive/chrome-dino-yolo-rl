@@ -37,7 +37,7 @@ class DinoDetectionResult:
 class DinoDetector:
     DINO_X_POSITION = 40
     
-    def __init__(self, model_path: str = "weights/yolo26n_dino_260418.pt", confidence: float = 0.6):
+    def __init__(self, model_path: str = "weights/yolo26n_dino_simple.pt", confidence: float = 0.6):
         self.model = YOLO(model_path)
         self.confidence = confidence
     

@@ -4,7 +4,7 @@ import mss
 import numpy as np
 import cv2
 
-CONFIG_FILE = "config.json"
+CONFIG_FILE = "cfg/roi.json"
 DATASET_DIR = "dataset"
 
 
