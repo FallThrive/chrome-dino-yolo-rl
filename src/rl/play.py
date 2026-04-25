@@ -12,6 +12,7 @@ from stable_baselines3 import PPO
 from src.core.keyboard import KeyboardController
 from src.utils.visualization import draw_key_indicators, draw_detections, FPSCounter, draw_fps
 from src.rl.env import DinoGameEnv
+import keyboard
 
 
 def find_latest_model(base_path: str = "weights/rl") -> str:
@@ -69,7 +70,7 @@ def play_rl(weights_path: str = None, use_latest: bool = False, only_up: bool = 
         print("Training a new model...")
         model = PPO("MlpPolicy", env, verbose=1)
     
-    keyboard = KeyboardController()
+    kb = KeyboardController()
     fps_counter = FPSCounter()
     
     keyboard_img = None
@@ -87,9 +88,14 @@ def play_rl(weights_path: str = None, use_latest: bool = False, only_up: bool = 
     total_reward = 0
     step_count = 0
     episode_count = 0
+    running = True
     
-    while True:
-        keyboard.update()
+    while running:
+        kb.update()
+        
+        if keyboard.is_pressed('q') or keyboard.is_pressed('Q'):
+            running = False
+            break
         
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, done, truncated, info = env.step(action)
@@ -99,7 +105,7 @@ def play_rl(weights_path: str = None, use_latest: bool = False, only_up: bool = 
         if done or truncated:
             episode_count += 1
             print(f"Episode {episode_count} ended. Total reward: {total_reward:.2f}, Steps: {step_count}")
-            keyboard.press_enter()
+            kb.press_enter()
             time.sleep(0.5)
             obs, _ = env.reset()
             fps_counter.reset()
@@ -118,7 +124,7 @@ def play_rl(weights_path: str = None, use_latest: bool = False, only_up: bool = 
             
             if keyboard_img is None:
                 keyboard_img = np.ones((64 * 2 + 20, image.shape[1], 3), dtype=np.uint8) * 255
-            keyboard_img = draw_key_indicators(keyboard_img, keyboard.get_pressed_keys())
+            keyboard_img = draw_key_indicators(keyboard_img, kb.get_pressed_keys())
             
             action_names = ["NOOP", "UP"] if only_up else ["NOOP", "UP", "DOWN"]
             action_text = f"Action: {action_names[action]}"
@@ -166,13 +172,11 @@ def play_rl(weights_path: str = None, use_latest: bool = False, only_up: bool = 
             )
             
             cv2.imshow("RL Gameplay", cv2.vconcat([display_img, keyboard_img]))
-            
-            key = cv2.waitKey(1)
-            if key == ord('q'):
-                break
+            cv2.waitKey(1)
     
     cv2.destroyAllWindows()
     env.close()
+    os._exit(0)
 
 
 def main():

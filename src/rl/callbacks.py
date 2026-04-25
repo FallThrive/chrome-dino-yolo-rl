@@ -24,7 +24,7 @@ class TrainingStatsCallback(BaseCallback):
     def _on_step(self) -> bool:
         try:
             import keyboard
-            if keyboard.is_pressed('q'):
+            if keyboard.is_pressed('q') or keyboard.is_pressed('Q'):
                 if self.save_path:
                     self.model.save(os.path.join(self.save_path, "final_model.zip"))
                 return False

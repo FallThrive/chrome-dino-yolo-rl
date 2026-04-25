@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import os
 import time
-from pynput.keyboard import Key
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -179,10 +178,10 @@ def draw_key_indicators(image: np.ndarray, pressed_keys) -> np.ndarray:
     right_x = start_x + (2 * icon_w)
     right_y = margin + icon_h
 
-    up_icon = UP_PRESSED_IMG if Key.space in pressed_keys else UP_IMG
+    up_icon = UP_PRESSED_IMG if 'space' in pressed_keys else UP_IMG
     image = overlay_image(image, up_icon, up_x, up_y)
     
-    down_icon = DOWN_PRESSED_IMG if Key.down in pressed_keys else DOWN_IMG
+    down_icon = DOWN_PRESSED_IMG if 'down' in pressed_keys else DOWN_IMG
     image = overlay_image(image, down_icon, down_x, down_y)
 
     image = overlay_image(image, LEFT_IMG, left_x, left_y)

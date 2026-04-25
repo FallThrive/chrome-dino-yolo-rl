@@ -3,7 +3,6 @@ import sys
 import cv2
 import numpy as np
 import time
-from pynput.keyboard import Key
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -12,11 +11,12 @@ from src.core.screen import capture_screenshot
 from src.core.keyboard import KeyboardController
 from src.utils.visualization import draw_key_indicators, draw_detections, FPSCounter, draw_fps
 from src.rule_based.controller import GameController
+import keyboard
 
 
 def play_rule_based():
     detector = DinoDetector()
-    keyboard = KeyboardController()
+    kb = KeyboardController()
     controller = GameController()
     fps_counter = FPSCounter()
     
@@ -26,8 +26,14 @@ def play_rule_based():
     print("Starting rule-based gameplay...")
     print("Press 'q' to quit")
     
-    while True:
-        keyboard.update()
+    running = True
+    
+    while running:
+        kb.update()
+        
+        if keyboard.is_pressed('q') or keyboard.is_pressed('Q'):
+            running = False
+            break
         
         image = capture_screenshot()
         if image is None:
@@ -48,9 +54,9 @@ def play_rule_based():
             action = controller.get_action(detections, time.time())
 
             if action == "up":
-                keyboard.press_jump()
+                kb.press_jump()
             elif action == "down":
-                keyboard.press_duck()
+                kb.press_duck()
 
         display_img = draw_detections(image, result)
         
@@ -59,7 +65,7 @@ def play_rule_based():
 
         if keyboard_img is None:
             keyboard_img = np.ones((64 * 2 + 20, image.shape[1], 3), dtype=np.uint8) * 255
-        keyboard_img = draw_key_indicators(keyboard_img, keyboard.get_pressed_keys())
+        keyboard_img = draw_key_indicators(keyboard_img, kb.get_pressed_keys())
 
         speed_text = f"Speed: {controller.get_current_speed():.1f}px/s"
         cv2.putText(
@@ -107,11 +113,10 @@ def play_rule_based():
         )
 
         cv2.imshow("Gameplay", cv2.vconcat([display_img, keyboard_img]))
-        key = cv2.waitKey(1)
-        if key == ord('q'):
-            break
+        cv2.waitKey(1)
     
     cv2.destroyAllWindows()
+    os._exit(0)
 
 
 if __name__ == "__main__":
