@@ -25,12 +25,14 @@ class TrainingStatsCallback(BaseCallback):
         try:
             import keyboard
             if keyboard.is_pressed('q') or keyboard.is_pressed('Q'):
-                if self.save_path:
-                    self.model.save(os.path.join(self.save_path, "final_model.zip"))
-                return False
+                raise KeyboardInterrupt
         except ImportError:
             pass
-        
+
+        env = self.model.env.envs[0] if hasattr(self.model, 'env') else None
+        if env is not None and getattr(env, 'quit_requested', False):
+            raise KeyboardInterrupt
+
         infos = self.locals.get('infos', [])
         dones = self.locals.get('dones', [])
         

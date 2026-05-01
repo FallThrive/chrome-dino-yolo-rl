@@ -164,6 +164,7 @@ class DinoGameEnv(gym.Env):
         self._total_reward = 0.0
         self._episode_count = 0
         self._keyboard_img = None
+        self.quit_requested = False
     
     def _build_state(self, dino_y: Optional[float], obstacles: list, speed: float) -> np.ndarray:
         state = np.full(7, -1.0, dtype=np.float32)
@@ -197,6 +198,7 @@ class DinoGameEnv(gym.Env):
         self._last_action = 0
         self._step_count = 0
         self._total_reward = 0.0
+        self.quit_requested = False
         
         self.keyboard.release_all()
         
@@ -218,13 +220,18 @@ class DinoGameEnv(gym.Env):
         if result.has_restart:
             self.keyboard.press_enter()
             time.sleep(0.5)
-        
+            image = capture_screenshot()
+            if image is not None:
+                self._current_image = image
+                result = self.detector.detect(image)
+                self._last_result = result
+
         dino_y = result.dino.y_center if result.dino else None
         state = self._build_state(dino_y, result.obstacles, 400.0)
-        
+
         if self.render_mode == "human":
             self._render_frame()
-        
+
         return state, {}
     
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, dict]:
@@ -395,7 +402,9 @@ class DinoGameEnv(gym.Env):
         
         cv2.imshow(self._window_name, cv2.vconcat([display_img, self._keyboard_img]))
         self._window_created = True
-        cv2.waitKey(1)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q') or key == ord('Q'):
+            self.quit_requested = True
     
     def render(self):
         if self.render_mode == "human":
