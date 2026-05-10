@@ -79,7 +79,7 @@ def train(
     
     reset_callback = GameResetCallback(verbose=0)
     episode_callback = EpisodeLimitCallback(n_episodes, verbose=0)
-    stats_callback = TrainingStatsCallback(save_path=save_path, print_freq=1, verbose=1)
+    stats_callback = TrainingStatsCallback(save_path=save_path)
     
     callbacks = [checkpoint_callback, reset_callback, episode_callback, stats_callback]
     
